@@ -1,338 +1,284 @@
 import 'package:expense_tracker/controller/expenseController.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/models/tag.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:expense_tracker/screens/Home%20Page/Add%20Page/addPage.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get_instance/get_instance.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 
-class Dashboard extends StatefulWidget {
-  const Dashboard({super.key});
+class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key});
 
   @override
-  State<Dashboard> createState() => _DashboardState();
+  State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardState extends State<Dashboard> {
+class _DashboardPageState extends State<DashboardPage> {
   final ExpenseController _expenseController = Get.find<ExpenseController>();
-
-  Map<Tag, double> _tagTotals = {};
+  final ScrollController _scrollController = ScrollController();
+  String _selectedExpensesDurationToDisplay = "Today";
   List<Expense> _expenses = [];
-  List<Expense> _allExpenses = [];
-  Tag? _selectedTag;
-  bool _loading = true;
-  bool _isTouched = false;
-  // int _touchedIndex = -1;
+  Map<Tag, dynamic> _tagExpenses = {};
 
   @override
   void initState() {
     super.initState();
-    _loadTagTotals();
-    _getAllExpenses();
+    _getAllExpensesByTime();
+    _getAllTagsWithExpensesByDuration();
   }
 
-  Future<void> _loadTagTotals() async {
-    final totals = await _expenseController.getTotalExpensePerTag();
+  Future<void> _getAllExpensesByTime() async {
+    final expenses = await _expenseController.getAllExpensesByDuration(
+      _selectedExpensesDurationToDisplay,
+      limit: 20,
+    );
+
     setState(() {
-      _tagTotals = totals;
-      _loading = false;
+      _expenses = expenses;
     });
   }
 
-  Future<void> _loadExpensesByTag(Tag tag) async {
-    final all = await _expenseController.getAllExpenses();
-
-    if (_selectedTag != null && _selectedTag!.id == tag.id) {
-      // Deselect and show all expenses
-      setState(() {
-        _selectedTag = null;
-        _isTouched = false;
-        _expenses = [];
-        _allExpenses = all; // refresh all expenses
-      });
-    } else {
-      final expenses = all.where((e) => e.tag.value?.id == tag.id).toList();
-      setState(() {
-        _selectedTag = tag;
-        _expenses = expenses;
-        _isTouched = true;
-      });
-    }
-  }
-
-  Future<void> _getAllExpenses() async {
-    final allExpenses = await _expenseController.getAllExpenses();
+  Future<void> _getAllTagsWithExpensesByDuration() async {
+    final tagExpenses = await _expenseController
+        .getAllTagsWithExpenseByDuration(_selectedExpensesDurationToDisplay);
 
     setState(() {
-      _allExpenses = allExpenses;
+      _tagExpenses = tagExpenses;
     });
   }
-
-  void handlePieChartSectionTouch(
-    FlTouchEvent event,
-    PieTouchResponse? response,
-  ) {
-    setState(() {
-      if (!event.isInterestedForInteractions ||
-          response == null ||
-          response.touchedSection == null) {
-        return;
-      }
-    });
-  }
-
-  double get _totalSpent => _tagTotals.values.fold(0.0, (prev, e) => prev + e);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Greeting Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Hi User",
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w400,
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, right: 10, top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Hi User",
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
-                  ),
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, color: Colors.black),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Pie Chart
-              if (_loading)
-                const Center(child: CircularProgressIndicator())
-              else if (_tagTotals.isEmpty)
-                const Text(
-                  "No expenses to show",
-                  style: TextStyle(color: Colors.white),
-                )
-              else ...[
-                SizedBox(
-                  height: 250,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _tagTotals.entries.map((entry) {
-                        final tag = entry.key;
-                        final amount = entry.value;
-                        final percentage = (amount / _totalSpent * 100)
-                            .toStringAsFixed(1);
-                        return PieChartSectionData(
-                          value: amount,
-                          title: "${tag.name}\n$percentage%",
-                          color: Color(tag.colorValue),
-                          titleStyle: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          radius: _selectedTag == tag ? 65 : 60,
-                        );
-                      }).toList(),
-
-                      sectionsSpace: 1,
-                      centerSpaceRadius: 60,
-                      pieTouchData: PieTouchData(
-                        touchCallback: (event, response) {
-                          final index =
-                              response?.touchedSection?.touchedSectionIndex ??
-                              -1;
-                          if (index >= 0 && index < _tagTotals.length) {
-                            final tag = _tagTotals.keys.elementAt(index);
-                            _loadExpensesByTag(tag);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
+                    const Icon(Icons.currency_rupee, size: 35),
+                  ],
                 ),
-
-                const SizedBox(height: 16),
-
-                // Tag Legend
-                SizedBox(
-                  height: 36,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _tagTotals.length,
-                    itemBuilder: (context, index) {
-                      final entry = _tagTotals.entries.elementAt(index);
-                      final tag = entry.key;
-                      final amount = entry.value;
-
-                      return GestureDetector(
-                        onTap: () {
-                          _loadExpensesByTag(tag);
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _selectedTag == tag
-                                ? Colors.grey.shade300
-                                : Colors.grey.shade900,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                height: 10,
-                                width: 10,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  color: Color(tag.colorValue),
-                                  shape: BoxShape.circle,
-                                ),
+                Text(
+                  " Will you save?",
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w400),
+                ),
+              ],
+            ),
+          ),
+          // const SizedBox(height: 20),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      // color: Colors.grey.shade900,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      spacing: 60,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "₹2,500",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              Text(
-                                "${tag.name}: ₹${amount.toInt()}",
-                                style: TextStyle(
-                                  color: _selectedTag == tag
-                                      ? Colors.black
-                                      : Colors.grey.shade300,
-                                  fontSize: 12,
-                                ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Total Spent",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "₹7,500",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Remaining Balance",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Today's Spending",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 10),
+                        Stack(
+                          children: [
+                            // Background bar (budget)
+                            Container(
+                              height: 60,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade800,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            // Foreground bar (actual spending)
+                            FractionallySizedBox(
+                              widthFactor: 0.4, // 40% of budget spent
+                              child: Container(
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.greenAccent.shade400,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              "₹1,000 spent",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              "Budget: ₹2,500",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 2.5,
+                    children:
+                        [
+                          {
+                            "label": "Add",
+                            "icon": Icons.add,
+                            "iconColor": Colors.green,
+                          },
+                          {
+                            "label": "Income",
+                            "icon": Icons.attach_money,
+                            "iconColor": Colors.amber,
+                          },
+                          {
+                            "label": "Calculator",
+                            "icon": Icons.calculate,
+                            "iconColor": Colors.redAccent,
+                          },
+                          {
+                            "label": "Show All",
+                            "icon": Icons.list,
+                            "iconColor": Colors.blue,
+                          },
+                        ].map((option) {
+                          final label = option["label"] as String;
+                          final icon = option["icon"] as IconData;
+                          final iconColor = option["iconColor"] as Color;
 
-                // Spending Summary
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
-                    borderRadius: BorderRadius.circular(10),
+                          return GestureDetector(
+                            onTap: () {
+                              if (label == "Add") {
+                                Get.to(() => const AddPage());
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade900,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(icon, color: iconColor),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      label,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildSummaryColumn("Today", _totalSpent.toInt()),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        color: Colors.grey.shade700,
-                      ),
-                      _buildSummaryColumn("Monthly", 2800),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-                Divider(),
-
-                // Expense List
-                expensesList(),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Column expensesList() {
-    final finalExpenses = _isTouched ? _expenses : _allExpenses;
-    return Column(
-      spacing: 20,
-      children: [
-        SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("History", style: TextStyle(fontSize: 30)),
-            Container(
-              padding: EdgeInsets.only(top: 5, bottom: 5, left: 10, right: 2),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  Text("Filters", style: TextStyle(color: Colors.black)),
-                  Icon(
-                    Icons.arrow_drop_down_rounded,
-                    color: Colors.black,
-                    size: 20,
-                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ],
-        ),
-        Column(
-          children: finalExpenses.map((expense) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                title: Text(
-                  "₹${expense.amount.toStringAsFixed(2)}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  expense.tag.value?.name ?? "Unknown",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
-}
-
-Widget _buildSummaryColumn(String label, int amount) {
-  return Column(
-    children: [
-      Text(
-        "₹ $amount",
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        "$label Spending",
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-      ),
-    ],
-  );
 }

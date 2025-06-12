@@ -18,7 +18,7 @@ subprojects {
         if (plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")) {
             extensions.findByName("android")?.let { ext ->
                 (ext as com.android.build.gradle.BaseExtension).apply {
-                    compileSdkVersion(35)
+                    compileSdkVersion(34)
                     buildToolsVersion("34.0.0")
                 }
             }

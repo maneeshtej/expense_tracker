@@ -49,12 +49,62 @@ class ExpenseController extends GetxController {
     expenses.insert(0, expense);
   }
 
-  Future<List<Expense>> getAllExpenses() async {
+  Future<List<Expense>> getAllExpensesByDuration(
+    String duration, {
+    int? limit,
+  }) async {
     final isar = await _isarFuture;
+    final now = DateTime.now();
 
-    final expenses = await isar.expenses.where().findAll();
+    late DateTime start;
+    late DateTime end;
 
-    return expenses;
+    switch (duration.toLowerCase()) {
+      case "today":
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        break;
+
+      case "weekly":
+        final daysFromSunday = now.weekday % 7;
+        start = DateTime(now.year, now.month, now.day - daysFromSunday);
+        end = DateTime(
+          now.year,
+          now.month,
+          now.day - daysFromSunday + 6,
+          23,
+          59,
+          59,
+          999,
+        );
+        break;
+
+      case "monthly":
+        start = DateTime(now.year, now.month, 1);
+        end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+        break;
+
+      case "yearly":
+        start = DateTime(now.year, 1, 1);
+        end = DateTime(now.year, 12, 31, 23, 59, 59, 999);
+        break;
+
+      default:
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    }
+
+    final query = isar.expenses
+        .filter()
+        .timeStampBetween(start, end)
+        .sortByTimeStampDesc();
+
+    // 👇 Directly return the final query after applying limit if needed
+    if (limit != null) {
+      return await query.limit(limit).findAll();
+    } else {
+      return await query.findAll();
+    }
   }
 
   // --------------------------------
@@ -91,27 +141,76 @@ class ExpenseController extends GetxController {
     return await isar.tags.where().findAll();
   }
 
-  Future<Map<Tag, double>> getTotalExpensePerTag() async {
+  Future<Map<Tag, double>> getAllTagsWithExpenseByDuration(
+    String duration,
+  ) async {
     final isar = await _isarFuture;
+    final now = DateTime.now();
 
-    // Load all tags and expenses
-    final expenses = await isar.expenses.where().findAll();
-    final tags = await isar.tags.where().findAll();
+    late DateTime start;
+    late DateTime end;
 
-    Map<Tag, double> totals = {};
+    switch (duration.toLowerCase()) {
+      case "today":
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+        break;
 
-    for (final tag in tags) {
-      final matchingExpenses = expenses.where((expense) {
-        return expense.tag.value?.id == tag.id;
-      });
+      case "weekly":
+        final daysFromSunday = now.weekday % 7;
+        start = DateTime(now.year, now.month, now.day - daysFromSunday);
+        end = DateTime(
+          now.year,
+          now.month,
+          now.day - daysFromSunday + 6,
+          23,
+          59,
+          59,
+          999,
+        );
+        break;
 
-      final totalForTag = matchingExpenses.fold<double>(
-        0.0,
-        (sum, e) => sum + e.amount,
-      );
+      case "monthly":
+        start = DateTime(now.year, now.month, 1);
+        end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+        break;
 
-      if (totalForTag > 0) {
-        totals[tag] = totalForTag;
+      case "yearly":
+        start = DateTime(now.year, 1, 1);
+        end = DateTime(now.year, 12, 31, 23, 59, 59, 999);
+        break;
+
+      default:
+        start = DateTime(now.year, now.month, now.day);
+        end = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    }
+
+    final expenses = await isar.expenses
+        .filter()
+        .timeStampBetween(start, end)
+        .findAll();
+
+    final Map<String, Tag> tagLookup = {};
+    final Map<Tag, double> totals = {};
+
+    for (final expense in expenses) {
+      await expense.tag.load();
+      final tag = expense.tag.value;
+      if (tag == null) continue;
+
+      final tagName = tag.name;
+
+      if (tagName.toLowerCase() == "food") {
+        print("Food tag amount before: ${totals[tagLookup[tagName]] ?? 0}");
+        print("Current expense amount: ${expense.amount}");
+      }
+
+      if (tagLookup.containsKey(tagName)) {
+        final existingTag = tagLookup[tagName]!;
+        totals[existingTag] = (totals[existingTag] ?? 0) + expense.amount;
+      } else {
+        tagLookup[tagName] = tag;
+        totals[tag] = expense.amount;
       }
     }
 

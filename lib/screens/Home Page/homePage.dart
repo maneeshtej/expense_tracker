@@ -1,4 +1,3 @@
-import 'package:expense_tracker/screens/Home%20Page/Add%20Page/addPage.dart';
 import 'package:expense_tracker/screens/Home%20Page/Dashboard/dashboard.dart';
 import 'package:flutter/material.dart';
 
@@ -9,74 +8,104 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  late Animation<double> _animation;
 
-  final List<Widget> _pages = [
-    const Dashboard(),
-    const AddPage(),
-    const CalculatorPage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _animation = _tabController.animation!;
+  }
 
-  void _onItemTapped(int index) {
-    setState(() => _selectedIndex = index);
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(child: _pages[_selectedIndex]),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(Icons.dashboard),
-            ),
-            label: 'Dashboard',
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          TabBarView(
+            controller: _tabController,
+            children: const [
+              DashboardPage(),
+              Center(
+                child: Text(
+                  "Visualizer Page",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Padding(padding: EdgeInsets.all(8.0), child: Icon(Icons.add)),
-            label: 'Add',
-          ),
-          BottomNavigationBarItem(
-            icon: Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(Icons.calculate),
-            ),
-            label: 'Calculator',
+
+          // 🎯 This is the animated pill
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              final alignX = 1.0 - (_animation.value * 2);
+              return Align(
+                alignment: Alignment(alignX, 1.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: GestureDetector(
+                    onTap: () {
+                      final newIndex = _tabController.index == 0 ? 1 : 0;
+                      _tabController.animateTo(newIndex);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade900,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 6,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        spacing: 10,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_tabController.index == 1)
+                            const Icon(
+                              Icons.arrow_back_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          if (_tabController.index == 1)
+                            const Icon(Icons.dashboard, color: Colors.white),
+
+                          if (_tabController.index == 0)
+                            const Icon(Icons.pie_chart, color: Colors.white),
+
+                          if (_tabController.index == 0)
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
-      ),
-    );
-  }
-}
-
-class CalculatorPage extends StatelessWidget {
-  const CalculatorPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(
-          10,
-          (index) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Text(
-              'Calculator Item ${index + 1}',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-          ),
-        ),
       ),
     );
   }

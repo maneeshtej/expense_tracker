@@ -22,7 +22,6 @@ class _AddPageState extends State<AddPage> {
 
   List<Tag> _tags = [];
   Tag? _currentTag;
-
   bool _isIncome = false;
 
   @override
@@ -47,20 +46,14 @@ class _AddPageState extends State<AddPage> {
 
   Future<void> _selectTag(Tag tag) async {
     setState(() {
-      if (_currentTag == null) {
-        _currentTag = tag;
-      } else if (_currentTag?.name == tag.name) {
-        _currentTag = null;
-      } else {
-        _currentTag = tag;
-      }
+      _currentTag = (_currentTag?.name == tag.name) ? null : tag;
     });
   }
 
   Future<void> _saveExpense() async {
     if (_amountController.text.isEmpty || _currentTag == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter amount and select a tag')),
+        const SnackBar(content: Text('Please enter amount and select a tag')),
       );
       return;
     }
@@ -69,7 +62,7 @@ class _AddPageState extends State<AddPage> {
     if (amount == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Invalid amount entered')));
+      ).showSnackBar(const SnackBar(content: Text('Invalid amount entered')));
       return;
     }
 
@@ -85,24 +78,22 @@ class _AddPageState extends State<AddPage> {
       ..note = _noteController.text.isEmpty ? null : _noteController.text
       ..isIncome = _isIncome;
 
-    // Link the selected tag
     expense.tag.value = _currentTag!;
-
     await _expenseController.addExpense(expense);
 
-    // Clear inputs after saving
     _amountController.clear();
     _bankNameController.clear();
     _receiverNameController.clear();
     _noteController.clear();
+
     setState(() {
       _currentTag = null;
       _isIncome = false;
     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Expense saved successfully!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Expense saved successfully!')),
+    );
   }
 
   InputDecoration _inputDecoration() {
@@ -117,45 +108,47 @@ class _AddPageState extends State<AddPage> {
         borderSide: BorderSide(color: Colors.grey.shade700, width: 0.5),
         borderRadius: BorderRadius.circular(10),
       ),
-      border: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.grey.shade700, width: 0.5),
-        borderRadius: BorderRadius.circular(10),
-      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // optional: dark theme
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text("Add Expense"),
+        centerTitle: true,
+        elevation: 0.5,
+      ),
       body: Padding(
-        padding: const EdgeInsets.only(top: 30, left: 16, right: 16),
+        padding: const EdgeInsets.only(top: 10, left: 16, right: 16),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Add Expense",
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              const SizedBox(height: 10),
               Text(
                 "Purchase with power...",
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
               ),
-              SizedBox(height: 30),
-              // Amount Field
+              const SizedBox(height: 30),
+
               Text("Amount", style: Theme.of(context).textTheme.labelSmall),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 controller: _amountController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: _inputDecoration(),
+                style: const TextStyle(color: Colors.white),
               ),
 
-              SizedBox(height: 20),
-
-              // Tags selector (same style as before)
+              const SizedBox(height: 20),
               Text("Tags", style: Theme.of(context).textTheme.labelSmall),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
+
               if (_tags.isNotEmpty)
                 SizedBox(
                   height: 40,
@@ -166,19 +159,18 @@ class _AddPageState extends State<AddPage> {
                       final tag = _tags[index];
                       final isSelected = _currentTag?.name == tag.name;
                       return GestureDetector(
-                        onTap: () {
-                          _selectTag(tag);
-                        },
+                        onTap: () => _selectTag(tag),
                         child: Container(
-                          margin: EdgeInsets.only(left: 0, right: 15),
+                          margin: const EdgeInsets.only(right: 10),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             color: isSelected
                                 ? Colors.black
                                 : Colors.grey.shade900,
-                            border: isSelected
-                                ? Border.all(color: Colors.white, width: 0.5)
-                                : Border.all(color: Colors.black, width: 1),
+                            border: Border.all(
+                              color: isSelected ? Colors.white : Colors.black,
+                              width: isSelected ? 0.5 : 1,
+                            ),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
@@ -187,7 +179,7 @@ class _AddPageState extends State<AddPage> {
                             ),
                             child: Text(
                               tag.name,
-                              style: TextStyle(color: Colors.white),
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         ),
@@ -196,43 +188,38 @@ class _AddPageState extends State<AddPage> {
                   ),
                 ),
 
-              SizedBox(height: 20),
-
-              // Bank Name
+              const SizedBox(height: 20),
               Text("Bank Name", style: Theme.of(context).textTheme.labelSmall),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 controller: _bankNameController,
                 decoration: _inputDecoration(),
+                style: const TextStyle(color: Colors.white),
               ),
 
-              SizedBox(height: 20),
-
-              // Receiver Name
+              const SizedBox(height: 20),
               Text(
                 "Receiver Name",
                 style: Theme.of(context).textTheme.labelSmall,
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 controller: _receiverNameController,
                 decoration: _inputDecoration(),
+                style: const TextStyle(color: Colors.white),
               ),
 
-              SizedBox(height: 20),
-
-              // Note
+              const SizedBox(height: 20),
               Text("Note", style: Theme.of(context).textTheme.labelSmall),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               TextField(
                 controller: _noteController,
                 maxLines: 3,
                 decoration: _inputDecoration(),
+                style: const TextStyle(color: Colors.white),
               ),
 
-              SizedBox(height: 20),
-
-              // Income Toggle
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Text(
@@ -241,32 +228,28 @@ class _AddPageState extends State<AddPage> {
                   ),
                   Switch(
                     value: _isIncome,
-                    onChanged: (val) {
-                      setState(() {
-                        _isIncome = val;
-                      });
-                    },
+                    onChanged: (val) => setState(() => _isIncome = val),
                   ),
                 ],
               ),
 
-              SizedBox(height: 40),
-
-              // Save Button
+              const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
+                  onPressed: _saveExpense,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
-                    _saveExpense();
-                  },
-                  child: Text("Save Expense", style: TextStyle(fontSize: 16)),
+                  child: const Text(
+                    "Save Expense",
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ],
